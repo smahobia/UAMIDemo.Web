@@ -174,12 +174,13 @@ public class KeyVaultService : IKeyVaultService
         else if (!string.IsNullOrWhiteSpace(managedIdentityId))
         {
             _logger.LogInformation("Using User-Assigned ManagedIdentityCredential: {Id}", managedIdentityId);
-            credential = new ManagedIdentityCredential(managedIdentityId);
+            var managedIdentityIdObj = ManagedIdentityId.FromUserAssignedClientId(managedIdentityId);
+            credential = new ManagedIdentityCredential(managedIdentityIdObj);
         }
         else
         {
             _logger.LogInformation("Using System-Assigned ManagedIdentityCredential");
-            credential = new ManagedIdentityCredential();
+            credential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
         }
 
         return new SecretClient(new Uri(keyVaultUrl), credential);
