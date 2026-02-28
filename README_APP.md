@@ -1,7 +1,7 @@
 # UAMIDemo.Web - Application Documentation
 
 ## Overview
-**UAMIDemo.Web** is a .NET 8 ASP.NET Core web application that demonstrates secure integration with Azure services using **User-Assigned Managed Identity (UAMI)**. The application showcases best practices for managing Azure resources and retrieving secrets from Azure Key Vault without storing credentials in code.
+**UAMIDemo.Web** is a .NET 10 ASP.NET Core web application that demonstrates secure integration with Azure services using **User-Assigned Managed Identity (UAMI)**. The application showcases best practices for managing Azure resources and retrieving secrets from Azure Key Vault without storing credentials in code.
 
 ## Key Features
 - ✅ **User-Assigned Managed Identity (UAMI) Integration**: Secure authentication to Azure services
@@ -10,6 +10,7 @@
 - ✅ **Runtime Configuration**: Dynamic credential and configuration management
 - ✅ **RESTful APIs**: Clean API endpoints for configuration and secret management
 - ✅ **Environment-specific Configuration**: Support for Development, Staging, and Production environments
+- ✅ **.NET 10 (LTS)**: Built on the latest Long-Term Support version of .NET
 
 ## Application Structure
 
@@ -40,14 +41,15 @@ UAMIDemo.Web/
 ```
 
 ## Technical Stack
-- **Framework**: ASP.NET Core (.NET 8)
-- **Language**: C#
+- **Framework**: ASP.NET Core (.NET 10 LTS)
+- **Language**: C# 12
 - **Authentication**: Azure Managed Identity
 - **Cloud Platform**: Microsoft Azure
 - **Key Libraries**:
-  - `Azure.Identity`: For UAMI authentication
-  - `Azure.Security.KeyVault.Secrets`: For Key Vault access
-  - `Azure.ResourceManager`: For Azure resource management
+  - `Azure.Identity` 1.18.0: For UAMI authentication with modern ManagedIdentityId API
+  - `Azure.Security.KeyVault.Secrets` 4.6.0: For Key Vault access
+  - `Azure.ResourceManager` 1.13.2: For Azure resource management
+  - `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` 10.0.3: For runtime view compilation
 
 ## Configuration
 
@@ -77,8 +79,8 @@ UAMIDemo.Web/
 ## Getting Started
 
 ### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) or [Visual Studio Code](https://code.visualstudio.com/)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [Visual Studio 2022](https://visualstudio.microsoft.com/) (17.12 or later) or [Visual Studio Code](https://code.visualstudio.com/)
 - Azure subscription
 - Azure CLI (for setup)
 
@@ -163,7 +165,7 @@ For detailed deployment instructions, see **DEPLOYMENT.md**.
 ## Troubleshooting
 
 ### Application Won't Start
-- Verify .NET 8 SDK is installed: `dotnet --version`
+- Verify .NET 10 SDK is installed: `dotnet --version` (should show 10.0.x)
 - Check Azure credentials and configuration in appsettings
 - Review logs in Output window (Development mode shows detailed errors)
 
@@ -176,6 +178,25 @@ For detailed deployment instructions, see **DEPLOYMENT.md**.
 - Ensure all required settings in `appsettings.json` are properly set
 - Check `appsettings.Development.json` overrides for local development
 - Validate JSON syntax in configuration files
+
+## Version History
+
+### v2.0.0 - .NET 10 Upgrade (February 2026)
+**Major upgrade to .NET 10 (Long Term Support)**
+
+**What Changed**:
+- ✅ Upgraded from .NET 8.0 to .NET 10.0 (LTS)
+- ✅ Updated Azure.Identity from 1.14.0 to 1.18.0
+- ✅ Updated Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation from 8.0.2 to 10.0.3
+- ✅ Modernized ManagedIdentityCredential usage to use ManagedIdentityId API
+- ✅ All packages verified compatible with .NET 10
+- ✅ Build successful with 0 errors, 0 warnings
+
+**Breaking Changes**: None for consumers
+
+**Migration**: Automatic - no code changes required for consumers
+
+**Documentation**: Full upgrade documentation available in `.github/upgrades/scenarios/`
 
 ## Documentation
 - **README.md** - Project overview (this file)
@@ -210,6 +231,7 @@ For issues, questions, or contributions, please refer to the repository's issue 
 
 ---
 
-**Last Updated**: February 2026
-**Framework**: .NET 8
+**Last Updated**: February 28, 2026
+**Framework**: .NET 10.0 (LTS)
+**Version**: v2.0.0
 **Target Audience**: Azure developers learning UAMI authentication

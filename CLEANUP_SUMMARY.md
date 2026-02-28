@@ -2,7 +2,7 @@
 
 ## Cleanup Completed Successfully!
 
-Your UAMIDemo.Web application is now ready for safe commit to version control. All sensitive information has been removed and properly configured for security.
+Your UAMIDemo.Web application (.NET 10) is now ready for safe commit to version control. All sensitive information has been removed and properly configured for security.
 
 ---
 

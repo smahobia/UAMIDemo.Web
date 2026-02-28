@@ -24,10 +24,11 @@ Before committing your changes, please verify the following:
 - [ ] No user-specific settings committed (like local paths)
 
 ## ✅ Code Quality
-- [ ] Code builds successfully: `dotnet build`
+- [ ] Code builds successfully: `dotnet build` (.NET 10)
 - [ ] No compiler warnings or errors
 - [ ] Code follows existing style conventions
 - [ ] Meaningful commit message provided
+- [ ] Uses modern Azure.Identity API (ManagedIdentityId patterns)
 
 ## 📚 Documentation
 - [ ] README.md is up-to-date
