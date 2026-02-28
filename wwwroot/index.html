@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure UAMI Key Vault Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 24px 30px;
+        }
+
+        /* ── Top bar ── */
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px; padding: 8px 14px;
+            background: #f8f9fa; border-radius: 6px; border: 1px solid #e0e0e0;
+        }
+        .auth-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; }
+        .auth-dot { width: 10px; height: 10px; border-radius: 50%; background: #dc3545; display: inline-block; }
+        .auth-dot.on { background: #28a745; }
+        .btn-auth { background: #0084ff; color: white; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-auth:hover { background: #006ed6; }
+        .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 16px; }
+        .header h1 { color: #333; font-size: 22px; margin-bottom: 4px; }
+        .header p  { color: #666; font-size: 13px; }
+
+        /* ── Banners ── */
+        .banner { border-left: 4px solid #0084ff; background: #e8f4f8; padding: 9px 14px; margin-bottom: 14px; border-radius: 5px; font-size: 12px; color: #333; line-height: 1.6; }
+        .banner.warn { background: #fff8e1; border-color: #ffc107; }
+
+        /* ── Two-column layout ── */
+        .body-grid { display: grid; grid-template-columns: 480px 1fr; gap: 20px; align-items: start; }
+
+        /* ── Cards ── */
+        .card { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; }
+        .card:last-child { margin-bottom: 0; }
+        .card-title { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+        /* ── Section divider inside card ── */
+        .card-divider { border: none; border-top: 1px solid #e0e0e0; margin: 14px 0; }
+
+        /* ── Credential mode toggle ── */
+        .cred-toggle { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+        .cred-toggle input[type=radio] { display: none; }
+        .cred-toggle label { flex: 1; text-align: center; padding: 8px 6px; font-size: 11px; font-weight: 600; cursor: pointer; background: white; color: #666; transition: all .2s; line-height: 1.4; }
+        .cred-toggle label:first-of-type { border-right: 1px solid #ddd; }
+        .cred-toggle input:checked + label { background: #667eea; color: white; }
+
+        /* ── Form ── */
+        .fg { margin-bottom: 11px; }
+        .fg label { display: block; margin-bottom: 3px; color: #333; font-weight: 600; font-size: 12px; }
+        .fg input, .fg select { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 13px; font-family: inherit; transition: border-color .2s; }
+        .fg input:focus, .fg select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,.1); }
+        .fg input.locked { background: #f0f8f0; border-color: #28a745; }
+        .fg .hint { display: block; margin-top: 3px; font-size: 11px; color: #888; font-style: italic; }
+        .fg .disc-pick { margin-top: 5px; display: none; }
+        .fg .disc-pick select { background: #f0f4ff; border-color: #667eea; font-size: 12px; }
+        .fg .disc-pick-label { font-size: 11px; color: #667eea; font-weight: 600; margin-bottom: 3px; display: block; }
+
+        /* ── Buttons ── */
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        .btn { flex: 1; padding: 9px 14px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #5568d3; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,.4); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary { background: #f0f0f0; color: #333; border: 1px solid #ddd; flex: 0.5; }
+        .btn-secondary:hover { background: #e5e5e5; }
+        .btn-refresh { background: #28a745; color: white; flex: 0; padding: 5px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        .btn-refresh:hover:not(:disabled) { background: #218838; }
+        .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-discover { background: #17a2b8; color: white; }
+        .btn-discover:hover { background: #138496; }
+        .dcount { font-size: 11px; color: #888; margin-top: 3px; display: block; }
+
+        /* ── Discover toggle link ── */
+        .discover-toggle-row { margin-top: 10px; }
+        .btn-discover-toggle { background: none; border: none; color: #667eea; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
+        .btn-discover-toggle:hover { color: #4a56b0; }
+
+        /* ── Discovery sub-panel (inline, inside card) ── */
+        .discovery-panel { margin-top: 12px; background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 12px 14px; display: none; }
+        .discovery-panel-title { font-size: 12px; font-weight: 700; color: #3d4c8a; margin-bottom: 10px; }
+
+        /* ── Device code box ── */
+        .device-code-box { background: #1e1e1e; color: #fff; border-radius: 6px; padding: 12px 14px; margin-top: 10px; display: none; }
+        .code-line { font-family: 'Courier New', monospace; font-size: 20px; font-weight: bold; color: #4ec9b0; letter-spacing: 4px; }
+        .btn-copy { background: #444; border: none; color: #ccc; padding: 2px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+        .btn-copy:hover { background: #666; }
+
+        /* ── Discovery log ── */
+        .discovery-log { background: white; border: 1px solid #c7d2fe; border-radius: 4px; padding: 7px 10px; margin-top: 8px; font-size: 11px; color: #3d4c8a; max-height: 100px; overflow-y: auto; display: none; }
+        .discovery-log p { margin: 2px 0; }
+
+        /* ── Result box ── */
+        .result-box { border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; display: none; border: 1px solid #ddd; background: #fafafa; }
+        .result-box.success { background: #f0f8f4; border-color: #28a745; display: block; }
+        .result-box.error   { background: #fdf8f7; border-color: #dc3545; display: block; }
+        .result-box.loading { background: #f0f8ff; border-color: #0084ff; display: block; }
+        .result-title { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+        .result-box.success .result-title { color: #28a745; }
+        .result-box.error   .result-title { color: #dc3545; }
+        .result-box.loading .result-title { color: #0084ff; }
+        .result-content { font-size: 13px; color: #333; white-space: pre-wrap; word-break: break-word; }
+        .secret-value-box { background: white; border: 1px solid #ccc; padding: 9px 12px; border-radius: 4px; margin-top: 8px; font-weight: bold; color: #28a745; font-family: 'Courier New', monospace; font-size: 14px; }
+        .metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; font-size: 12px; }
+        .metadata-item { padding: 6px 9px; background: white; border-radius: 3px; border: 1px solid #eee; }
+        .meta-label { font-weight: 600; color: #666; margin-bottom: 2px; }
+        .meta-value { color: #333; word-break: break-all; }
+
+        .loader { display: inline-block; width: 11px; height: 11px; border: 2px solid #f3f3f3; border-top-color: #0084ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Console ── */
+        .console-hdr { display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; color: #e0e0e0; padding: 7px 12px; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 600; }
+        .btn-clr { background: none; border: 1px solid #666; color: #bbb; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 3px; }
+        .btn-clr:hover { background: #444; }
+        .console-body { background: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', Consolas, monospace; font-size: 11px; padding: 10px 12px; min-height: 220px; max-height: 500px; overflow-y: auto; border-radius: 0 0 6px 6px; line-height: 1.55; }
+        .console-body:empty::before { content: '// Console ready – operations logged here.'; color: #555; }
+        .log-entry { margin-bottom: 10px; border-bottom: 1px solid #2a2a2a; padding-bottom: 8px; }
+        .log-entry:last-child { border-bottom: none; margin-bottom: 0; }
+        .log-ts    { color: #569cd6; font-size: 10px; margin-bottom: 2px; }
+        .log-op    { color: #4ec9b0; font-weight: bold; margin-bottom: 4px; }
+        .log-label { color: #9cdcfe; font-size: 10px; margin-top: 4px; margin-bottom: 2px; }
+        .log-code  { color: #ce9178; white-space: pre-wrap; }
+        .log-json  { color: #dcdcaa; white-space: pre-wrap; }
+        .log-err   { color: #f44747; white-space: pre-wrap; }
+
+        /* ── Demo note ── */
+        .demo-note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 14px; margin-top: 16px; border-radius: 5px; font-size: 12px; color: #333; }
+
+        @media (max-width: 920px)  { .body-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 560px)  { .container { padding: 14px; } .metadata { grid-template-columns: 1fr; } .btn-row { flex-direction: column; } }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header & Info Banner -->
+    <div class="header" style="margin-bottom:16px;">
+        <h1>Azure UAMI Demo</h1>
+        <p>User Assigned Managed Identity (UAMI) — Key Vault access control &amp; credential demonstration</p>
+    </div>
+
+    <!-- Two-column body -->
+    <div class="body-grid">
+
+        <!-- ═══ LEFT ═══ -->
+        <div>
+
+            <!-- ── Main card: Configuration + Retrieve ── -->
+            <div class="card">
+                <div class="card-title">&#9997; Retrieve a Secret</div>
+
+                <!-- Credential Mode -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:5px;">Credential Mode</div>
+                    <div class="cred-toggle">
+                        <input type="radio" id="modeDefault" name="credMode" value="default" checked onchange="onCredModeChange(false)">
+                        <label for="modeDefault">DefaultAzureCredential<br><span style="font-weight:400">local dev / az login</span></label>
+                        <input type="radio" id="modeManaged" name="credMode" value="managed" onchange="onCredModeChange(true)">
+                        <label for="modeManaged">ManagedIdentityCredential<br><span style="font-weight:400">Azure VM / production</span></label>
+                    </div>
+                </div>
+
+                <!-- UAMI Client ID -->
+                <div class="fg">
+                    <label for="manualUamiId">UAMI Client ID <span id="uamiOptional" style="font-weight:400;color:#888;">(required for ManagedIdentityCredential mode only)</span></label>
+                    <input type="text" id="manualUamiId" placeholder="e.g., 12345678-1234-1234-1234-123456789012" oninput="onManualChange()">
+                    <span class="hint" id="uamiHint">Only used when in ManagedIdentityCredential mode. For local dev with az login, use DefaultAzureCredential mode instead.</span>
+                    <!-- Discovered UAMIs (appears after discovery) -->
+                    <div class="disc-pick" id="discUamiRow">
+                        <span class="disc-pick-label">&#128269; Pick from discovered UAMIs:</span>
+                        <select id="discUamiSelect" onchange="onDiscUamiPick()">
+                            <option value="">-- select a discovered UAMI --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Key Vault URL -->
+                <div class="fg">
+                    <label for="manualKvUrl">Key Vault URL</label>
+                    <input type="text" id="manualKvUrl" placeholder="e.g., https://my-vault.vault.azure.net/" oninput="onManualChange()">
+                    <span class="hint" id="kvHint"></span>
+                    <!-- Discovered Key Vaults (appears after discovery) -->
+                    <div class="disc-pick" id="discKvRow">
+                        <span class="disc-pick-label">&#128269; Pick from discovered Key Vaults:</span>
+                        <select id="discKvSelect" onchange="onDiscKvPick()">
+                            <option value="">-- select a discovered Key Vault --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Secret Name -->
+                <div class="fg">
+                    <label for="manualSecret">Secret Name</label>
+                    <input type="text" id="manualSecret" placeholder="e.g., MyDatabasePassword" oninput="onManualChange()">
+                </div>
+
+                <!-- Retrieve buttons -->
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="retrieveBtn" onclick="retrieveSecret()" disabled>Retrieve Secret</button>
+                    <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                </div>
+
+                <!-- Discover Azure Resources expander -->
+                <hr class="card-divider">
+                <div class="discover-toggle-row">
+                    <button class="btn-discover-toggle" id="discoverToggle" onclick="toggleDiscovery()">
+                        &#128269; Discover Azure Resources <span id="discoverToggleIcon">&#9660; expand</span>
+                    </button>
+                </div>
+
+                <!-- Discovery sub-panel -->
+                <div class="discovery-panel" id="discoveryPanel">
+                    <div class="discovery-panel-title">Discover Azure Subscriptions, UAMIs &amp; Key Vaults</div>
+                    
+                    <!-- Recommended: PowerShell Script -->
+                    <details style="margin-bottom:12px;padding:8px;background:#e8f5e9;border:1px solid #4caf50;border-radius:4px;" open>
+                        <summary style="cursor:pointer;font-weight:600;font-size:12px;color:#2e7d32;">✅ Recommended: Run PowerShell Script (Easiest)</summary>
+                        <div style="margin-top:8px;font-size:11px;color:#333;line-height:1.6;">
+                            <p style="margin-bottom:6px;">Run this in PowerShell to automatically discover your Azure IDs:</p>
+                            <code style="display:block;background:#fff;padding:6px 8px;margin-bottom:8px;border-radius:3px;font-family:monospace;overflow-x:auto;border:1px solid #4caf50;">cd UAMIDemo.Web<br>.\Get-AzureIds.ps1</code>
+                            <p style="margin-bottom:6px;color:#666;font-style:italic;">This script will guide you through selecting your subscription, Key Vault, and UAMI, then show you the environment variable commands to run.</p>
+                        </div>
+                    </details>
+
+                    <p style="font-size:11px;color:#666;margin-bottom:10px;font-weight:600;">─── OR use the discovery below ───</p>
+                    
+                    <p style="font-size:11px;color:#555;margin-bottom:10px;">
+                        Uses your existing Azure credentials (az login, Visual Studio, or environment variables).
+                        <strong>REQUIRED:</strong> Before discovering, run <code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;">az login</code> in your terminal to authenticate.
+                        Discovered values will appear as dropdowns above the input fields so you can select them directly.
+                    </p>
+
+                    <!-- Authentication Instructions -->
+                    <details style="margin-bottom:12px;padding:8px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;">
+                        <summary style="cursor:pointer;font-weight:600;font-size:12px;color:#333;">How to authenticate with the correct account</summary>
+                        <div style="margin-top:8px;font-size:11px;color:#555;line-height:1.6;">
+                            <p style="margin-bottom:6px;"><strong>1. Check current account:</strong></p>
+                            <code style="display:block;background:#f0f0f0;padding:4px 6px;margin-bottom:8px;border-radius:3px;font-family:monospace;overflow-x:auto;">az account show</code>
+                            
+                            <p style="margin-bottom:6px;"><strong>2. List all accounts:</strong></p>
+                            <code style="display:block;background:#f0f0f0;padding:4px 6px;margin-bottom:8px;border-radius:3px;font-family:monospace;overflow-x:auto;">az account list</code>
+                            
+                            <p style="margin-bottom:6px;"><strong>3. Switch to different account (creates new login):</strong></p>
+                            <code style="display:block;background:#f0f0f0;padding:4px 6px;margin-bottom:8px;border-radius:3px;font-family:monospace;overflow-x:auto;">az login --username &lt;email@example.com&gt;</code>
+                            
+                            <p style="margin-bottom:6px;"><strong>4. Or switch between cached accounts:</strong></p>
+                            <code style="display:block;background:#f0f0f0;padding:4px 6px;margin-bottom:8px;border-radius:3px;font-family:monospace;overflow-x:auto;">az account set --subscription &lt;subscription-id&gt;</code>
+                            
+                            <p style="margin-bottom:6px;"><strong>5. Clear all cached credentials (logout):</strong></p>
+                            <code style="display:block;background:#f0f0f0;padding:4px 6px;border-radius:3px;font-family:monospace;overflow-x:auto;">az logout</code>
+                        </div>
+                    </details>
+
+                    <div class="fg" style="margin-bottom:8px;">
+                        <label for="discoverTenant" style="font-size:11px;">Tenant ID <span style="font-weight:400;color:#888;">(optional — leave blank to auto-detect)</span></label>
+                        <input type="text" id="discoverTenant" placeholder="leave blank to auto-detect" style="font-size:12px;">
+                    </div>
+                    <button class="btn-sm btn-discover" id="discoverBtn" onclick="startDiscovery()">Start Discovery</button>
+
+                    <!-- Device code display -->
+                    <div class="device-code-box" id="deviceCodeBox">
+                        <div style="font-size:11px;color:#aaa;">1. Open any browser and go to:</div>
+                        <a id="dcUrl" href="https://microsoft.com/devicelogin" target="_blank" style="color:#9cdcfe;font-size:12px;">https://microsoft.com/devicelogin</a>
+                        <div style="font-size:11px;color:#aaa;margin-top:7px;">2. Enter this code:</div>
+                        <div style="margin-top:3px;">
+                            <span class="code-line" id="dcCode">--------</span>
+                            <button class="btn-copy" onclick="copyCode()">Copy</button>
+                        </div>
+                        <div style="font-size:10px;color:#777;margin-top:5px;" id="dcExpiry"></div>
+                    </div>
+
+                    <!-- Progress log -->
+                    <div class="discovery-log" id="discoveryLog"></div>
+                </div>
+            </div>
+
+        </div><!-- /left -->
+
+        <!-- ═══ RIGHT ═══ -->
+        <div>
+
+            <!-- Result -->
+            <div id="resultBox" class="result-box">
+                <div class="result-title" id="resultTitle"></div>
+                <div class="result-content" id="resultContent"></div>
+                <div class="metadata" id="metaSection"></div>
+            </div>
+
+            <!-- Console -->
+            <div>
+                <div class="console-hdr">
+                    <span>&#128421; Activity Console</span>
+                    <button class="btn-clr" onclick="clearConsole()">Clear</button>
+                </div>
+                <div class="console-body" id="consoleBody"></div>
+            </div>
+
+        </div><!-- /right -->
+    </div><!-- /grid -->
+
+    <!-- Info Banner -->
+    <div class="banner" style="margin-top:20px;">
+        <strong>&#128274; No IDs committed to repo.</strong>
+        Values are in-memory only (seeded from env vars at startup, or your browser's local cache).
+        Enter values manually above, or use <strong>Discover Azure Resources</strong> to auto-populate from your subscription.
+        To persist via backend: set env vars <code>Azure__KeyVaultUrl</code>, <code>Azure__ExpectedUamiClientId</code>, <code>Azure__UseDefaultCredential</code>.
+    </div>
+
+    <!-- Demo notes -->
+    <div class="demo-note">
+        <strong>&#128203; Credential mode guide:</strong>
+        <ul style="margin-left:16px;margin-top:5px;">
+            <li><strong>DefaultAzureCredential</strong> (recommended for local dev) — Uses <code>az login</code> cached token, Visual Studio credentials, or environment variables. Ignores UAMI Client ID field. Use this with <strong>Discover Azure Resources</strong> to test Key Vaults you have direct access to.</li>
+            <li><strong>ManagedIdentityCredential</strong> (for Azure VMs) — Authenticates as a specific UAMI. Requires UAMI Client ID. Use this to test UAMI token acquisition with specific managed identities.</li>
+            <li><strong>403 Access Denied</strong> — UAMI is missing the <em>Key Vault Secrets User</em> role on the vault.</li>
+            <li><strong>Hanging requests</strong> — DefaultAzureCredential now excludes IMDS on non-Azure machines to prevent hangs. If still slow, check your <code>az login</code> token status with <code>az account show</code>.</li>
+            <li><strong>Persist config without restart</strong> — Set env vars: <code>Azure__KeyVaultUrl</code>, <code>Azure__ExpectedUamiClientId</code>, <code>Azure__UseDefaultCredential</code>.</li>
+        </ul>
+    </div>
+
+</div><!-- /container -->
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+let isAuthenticated = false;
+let selectedKvUrl   = null;
+let discEventSource = null;
+let discoveredTenant = null;
+
+// ── DOM shortcut ──────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+// ── Console ───────────────────────────────────────────────────────────────
+function clog(op, { req, res, code, err } = {}) {
+    const e = document.createElement('div');
+    e.className = 'log-entry';
+    const ts = new Date().toLocaleTimeString();
+    let h = `<div class="log-ts">[${ts}]</div>`;
+    h += `<div class="log-op">&#x25B6; ${esc(op)}</div>`;
+    if (code) { h += `<div class="log-label">// C# code:</div><pre class="log-code">${esc(code)}</pre>`; }
+    if (req)  { h += `<div class="log-label">// Request:</div><pre class="log-json">${esc(fmt(req))}</pre>`; }
+    if (err)  { h += `<div class="log-label">// Error:</div><pre class="log-err">${esc(String(err))}</pre>`; }
+    else if (res) { h += `<div class="log-label">// Response:</div><pre class="log-json">${esc(fmt(res))}</pre>`; }
+    e.innerHTML = h;
+    const cb = $('consoleBody');
+    cb.appendChild(e);
+    cb.scrollTop = cb.scrollHeight;
+}
+function clearConsole() { $('consoleBody').innerHTML = ''; }
+function esc(t)  { const d = document.createElement('div'); d.textContent = String(t ?? ''); return d.innerHTML; }
+function fmt(v)  { return typeof v === 'string' ? v : JSON.stringify(v, null, 2); }
+
+// ── Credential mode ────────────────────────────────────────────────────────
+async function onCredModeChange(useManagedIdentity) {
+    // Update "optional" label visibility
+    $('uamiOptional').style.display = useManagedIdentity ? 'none' : '';
+    updateRetrieveBtn();
+    try {
+        const r = await fetch('/api/config/credential-mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ useManagedIdentity })
+        });
+        const d = await r.json();
+        clog('POST /api/config/credential-mode', { req: { useManagedIdentity }, res: d });
+    } catch (e) { clog('POST /api/config/credential-mode', { err: e.message }); }
+}
+
+// ── Retrieve button state ─────────────────────────────────────────────────
+function onManualChange() { updateRetrieveBtn(); saveLocalState(); }
+function updateRetrieveBtn() {
+    const mode = document.querySelector('input[name=credMode]:checked')?.value ?? 'default';
+    const kvOk     = !!$('manualKvUrl').value.trim();
+    const secretOk = !!$('manualSecret').value.trim();
+    // UAMI only required when using ManagedIdentityCredential
+    const uamiOk   = mode === 'default' || !!$('manualUamiId').value.trim();
+    $('retrieveBtn').disabled = !(kvOk && secretOk && uamiOk);
+}
+
+function saveLocalState() {
+    localStorage.setItem('uami_demo_id', $('manualUamiId').value.trim());
+    localStorage.setItem('uami_demo_kv', $('manualKvUrl').value.trim());
+    localStorage.setItem('uami_demo_secret', $('manualSecret').value.trim());
+}
+
+// ── Discovery inline picks ─────────────────────────────────────────────────
+function onDiscUamiPick() {
+    const v = $('discUamiSelect').value;
+    if (v) { $('manualUamiId').value = v; $('manualUamiId').classList.remove('locked'); updateRetrieveBtn(); saveLocalState(); }
+}
+function onDiscKvPick() {
+    const v = $('discKvSelect').value;
+    if (v) { $('manualKvUrl').value = v; $('manualKvUrl').classList.remove('locked'); updateRetrieveBtn(); saveLocalState(); }
+}
+
+// ── Retrieve ──────────────────────────────────────────────────────────────
+async function retrieveSecret() {
+    const secretName = $('manualSecret').value.trim();
+    const uamiId     = $('manualUamiId').value.trim() || null;
+    const kvUrl      = $('manualKvUrl').value.trim() || null;
+    if (!secretName) { showError('Secret name is required.'); return; }
+    if (!kvUrl)      { showError('Key Vault URL is required.'); return; }
+    const body = { secretName, managedIdentityId: uamiId, keyVaultUrl: kvUrl };
+    showLoading();
+    clog('POST /api/secrets/retrieve', { req: body });
+    try {
+        const r = await fetch('/api/secrets/retrieve', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const d = await r.json();
+        const safe = { ...d }; if (safe.secretValue) safe.secretValue = '***';
+        clog('Retrieve result', { code: d.codeSnippet, req: d.requestInput, res: d.success ? safe : undefined, err: d.success ? undefined : d.errorMessage });
+        d.success ? showSuccess(d) : showError(d.errorMessage, d.credentialMethod, d.identityUsed);
+    } catch (e) { clog('Retrieve result', { err: e.message }); showError(`Network error: ${e.message}`); }
+}
+
+// ── Result helpers ────────────────────────────────────────────────────────
+function showLoading() {
+    $('resultBox').className = 'result-box loading';
+    $('resultTitle').innerHTML = '<span class="loader"></span>Retrieving…';
+    $('resultContent').textContent = 'Connecting to Key Vault…';
+    $('metaSection').innerHTML = '';
+}
+function showSuccess(d) {
+    $('resultBox').className = 'result-box success';
+    $('resultTitle').innerHTML = '&#10003; Secret Retrieved Successfully!';
+    $('resultContent').innerHTML = d.secretValue ? `<div class="secret-value-box">${esc(d.secretValue)}</div>` : '';
+    renderMeta([
+        { l:'Credential Method', v: d.credentialMethod || 'N/A' },
+        { l:'Identity Used',     v: d.identityUsed || 'System-assigned' },
+        { l:'Retrieved At',      v: new Date().toLocaleString() },
+        { l:'Status',            v: 'Access Granted \u2713' }
+    ]);
+}
+function showError(msg, cred='N/A', id='N/A') {
+    $('resultBox').className = 'result-box error';
+    $('resultTitle').innerHTML = '&#10005; Error Retrieving Secret';
+    $('resultContent').textContent = msg;
+    renderMeta([
+        { l:'Credential Method', v: cred },
+        { l:'Identity Used',     v: id },
+        { l:'Attempted At',      v: new Date().toLocaleString() }
+    ]);
+}
+function renderMeta(items) {
+    $('metaSection').innerHTML = items.map(i =>
+        `<div class="metadata-item"><div class="meta-label">${esc(i.l)}</div><div class="meta-value">${esc(i.v)}</div></div>`
+    ).join('');
+}
+function clearForm() {
+    ['manualUamiId','manualKvUrl','manualSecret'].forEach(id => { $(id).value=''; $(id).classList.remove('locked'); });
+    $('kvSelect').value=''; $('secretSelect').value=''; $('uamiSelect').value='';
+    $('discUamiSelect').value=''; $('discKvSelect').value='';
+    selectedKvUrl=null; $('secretSelect').disabled=true;
+    $('resultBox').className='result-box';
+    $('resultTitle').textContent=$('resultContent').textContent=''; $('metaSection').innerHTML='';
+    $('kvHint').textContent=''; $('uamiHint').textContent='';
+    updateRetrieveBtn();
+}
+
+// ── Discovery panel toggle ─────────────────────────────────────────────────
+function toggleDiscovery() {
+    const p = $('discoveryPanel');
+    const open = p.style.display === 'none' || p.style.display === '';
+    p.style.display = open ? 'block' : 'none';
+    $('discoverToggleIcon').textContent = open ? '▲ collapse' : '▼ expand';
+}
+
+// ── Discovery via SSE ─────────────────────────────────────────────────────
+function startDiscovery() {
+    if (discEventSource) discEventSource.close();
+    $('deviceCodeBox').style.display = 'none';
+    $('discoveryLog').style.display  = 'block';
+    $('discoveryLog').innerHTML      = '';
+    $('discoverBtn').disabled        = true;
+    $('discoverBtn').textContent     = '⏳ Waiting for login…';
+
+    const tenant = $('discoverTenant').value.trim();
+    const url = '/api/config/discover' + (tenant ? `?tenantId=${encodeURIComponent(tenant)}` : '');
+    clog('GET /api/config/discover (SSE)', { req: { tenantId: tenant || '(auto)' } });
+
+    discEventSource = new EventSource(url);
+    discEventSource.onmessage = e => {
+        let msg; try { msg = JSON.parse(e.data); } catch { return; }
+        switch (msg.type) {
+            case 'device-code':
+                $('dcCode').textContent = msg.code;
+                $('dcUrl').href = $('dcUrl').textContent = msg.url;
+                $('dcExpiry').textContent = `Expires at ${msg.expiresOn}`;
+                $('deviceCodeBox').style.display = 'block';
+                addDiscLog(`&#128275; Go to ${msg.url} &mdash; enter code: <strong>${msg.code}</strong>`);
+                clog('Discovery device-code', { res: msg });
+                break;
+            case 'progress':
+                addDiscLog(`&#9654; ${msg.message}`);
+                break;
+            case 'subscriptions':
+                discoveredTenant = msg.data[0]?.tenantId;
+                addDiscLog(`&#10003; ${msg.data.length} subscription(s) found`);
+                clog('Discovery subscriptions', { res: msg.data });
+                break;
+            case 'identities': {
+                const sel = $('discUamiSelect');
+                sel.innerHTML = '<option value="">-- select a discovered UAMI --</option>';
+                if (msg.data.length > 0) {
+                    msg.data.forEach(u => {
+                        const o = document.createElement('option');
+                        o.value = u.clientId;
+                        o.textContent = `${u.name} (${u.clientId})`;
+                        sel.appendChild(o);
+                    });
+                    $('discUamiRow').style.display = 'block';
+                }
+                addDiscLog(`&#10003; ${msg.data.length} UAMI(s) found`);
+                clog('Discovery identities', { res: msg.data });
+                break;
+            }
+            case 'key-vaults': {
+                const sel = $('discKvSelect');
+                sel.innerHTML = '<option value="">-- select a discovered Key Vault --</option>';
+                if (msg.data.length > 0) {
+                    msg.data.forEach(kv => {
+                        const o = document.createElement('option');
+                        o.value = kv.url;
+                        o.textContent = `${kv.name} (${kv.location})`;
+                        sel.appendChild(o);
+                    });
+                    $('discKvRow').style.display = 'block';
+                }
+                addDiscLog(`&#10003; ${msg.data.length} Key Vault(s) found`);
+                clog('Discovery key-vaults', { res: msg.data });
+                break;
+            }
+            case 'complete':
+                discoveredTenant = msg.tenantId || discoveredTenant;
+                addDiscLog(`✅ Discovery complete. Tenant: ${msg.tenantId}`);
+                clog('Discovery complete', { res: msg });
+                discEventSource.close();
+                $('discoverBtn').disabled = false;
+                $('discoverBtn').textContent = 'Start Discovery';
+                $('deviceCodeBox').style.display = 'none';
+                break;
+            case 'error':
+                addDiscLog(`❌ Error: ${msg.message}`);
+                clog('Discovery error', { err: msg.message });
+                discEventSource.close();
+                $('discoverBtn').disabled = false;
+                $('discoverBtn').textContent = 'Start Discovery';
+                break;
+        }
+    };
+    discEventSource.onerror = () => {
+        addDiscLog('❌ SSE connection closed.');
+        discEventSource.close();
+        $('discoverBtn').disabled = false;
+        $('discoverBtn').textContent = 'Start Discovery';
+    };
+}
+
+function addDiscLog(html) {
+    const p = document.createElement('p'); p.innerHTML = html;
+    const dl = $('discoveryLog'); dl.appendChild(p); dl.scrollTop = dl.scrollHeight;
+}
+
+function copyCode() {
+    navigator.clipboard.writeText($('dcCode').textContent).then(() => {
+        const b = event.target; b.textContent = 'Copied!';
+        setTimeout(() => b.textContent = 'Copy', 1500);
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+    // Load from localStorage if present
+    const lsUami = localStorage.getItem('uami_demo_id');
+    const lsKv = localStorage.getItem('uami_demo_kv');
+    const lsSecret = localStorage.getItem('uami_demo_secret');
+    if (lsUami) $('manualUamiId').value = lsUami;
+    if (lsKv) $('manualKvUrl').value = lsKv;
+    if (lsSecret) $('manualSecret').value = lsSecret;
+
+    updateRetrieveBtn();
+    try {
+        const r = await fetch('/api/config/current');
+        const d = await r.json();
+        clog('GET /api/config/current', { res: d });
+        if (d.keyVaultUrl) {
+            $('manualKvUrl').value = d.keyVaultUrl;
+            $('manualKvUrl').classList.add('locked');
+            $('kvHint').textContent = 'Pre-filled from server config.';
+        }
+        if (d.expectedUamiClientId) {
+            $('manualUamiId').value = d.expectedUamiClientId;
+            $('manualUamiId').classList.add('locked');
+            $('uamiHint').textContent = 'Pre-filled from server config.';
+        }
+        if (d.validationEnabled) {
+            $('uamiHint').textContent += ' Different UAMI Client ID will be rejected.';
+        }
+        if (d.useManagedIdentity) {
+            document.querySelector('input[name=credMode][value=managed]').checked = true;
+            $('uamiOptional').style.display = 'none';
+        }
+        updateRetrieveBtn();
+    } catch (e) { clog('GET /api/config/current', { err: e.message }); }
+});
+</script>
+</body>
+</html>

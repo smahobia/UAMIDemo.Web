@@ -1,0 +1,96 @@
+# UAMIDemo.Web - Copilot Instructions
+
+## Project Overview
+UAMIDemo.Web is a .NET 8 ASP.NET Core web application demonstrating User-Assigned Managed Identity (UAMI) integration with Azure Key Vault. The application provides interfaces for managing Azure resources and secrets securely using managed identities.
+
+## Architecture
+- **Framework**: ASP.NET Core (.NET 8)
+- **Authentication**: Azure Managed Identity (UAMI)
+- **Key Services**:
+  - `KeyVaultService`: Handles secure access to Azure Key Vault secrets
+  - `AzureResourceService`: Manages Azure resource operations
+  - `RuntimeConfigService`: Manages runtime configuration and credentials in memory
+  - `ConfigController`: Provides configuration management endpoints
+  - `SecretsController`: Provides secret management endpoints
+
+## Key Files and Responsibilities
+
+### Core Configuration
+- **Program.cs**: Application startup and dependency injection setup
+- **appsettings.json**: Base configuration (USE PLACEHOLDERS FOR SECRETS)
+- **appsettings.Development.json**: Development-specific settings
+- **appsettings.Production.json**: Production-specific settings
+
+### Services
+- **IKeyVaultService / KeyVaultService**: Abstracts Azure Key Vault operations
+- **IAzureResourceService / AzureResourceService**: Abstracts Azure resource operations
+- **RuntimeConfigService**: In-memory credential management (no secrets persisted to disk)
+
+### Controllers
+- **ConfigController**: API endpoints for configuration management
+- **SecretsController**: API endpoints for secret retrieval and management
+
+### Models
+- **AzureSettings**: Configuration model for Azure credentials
+- **AzureResourceModels**: Models for Azure resources
+- **SecretModels**: Models for secret operations
+
+## Important Guidelines
+
+### Security
+1. **NEVER commit real credentials**: Always use placeholder values like `<your-keyvault-name>`, `<your-tenant-id>`, `<your-client-id>`, etc.
+2. **Use Managed Identity in production**: Leverage UAMI for authentication instead of credentials
+3. **Environment variables**: Use environment variables for sensitive configuration in production
+4. **RuntimeConfigService**: Credentials are held in memory only; they are not persisted to disk
+
+### Development
+1. **Configuration**: Update appsettings.Development.json for local development
+2. **Azure Setup**: Follow LOCAL_SETUP.md for initial Azure resource configuration
+3. **Testing**: Run `dotnet run` to test locally on https://localhost:58067 and http://localhost:58068
+
+### Code Style
+- Use async/await patterns for I/O operations
+- Follow C# naming conventions (PascalCase for classes/methods, camelCase for variables)
+- Add XML documentation comments for public APIs
+- Use dependency injection via constructor parameters
+
+### Building and Running
+- **Build**: `dotnet build`
+- **Run**: `dotnet run`
+- **Clean**: `dotnet clean` (removes bin/ and obj/ directories)
+
+### Pre-Commit Checklist
+1. No real credentials in configuration files
+2. All placeholders are used: `<your-keyvault-name>`, `<your-tenant-id>`, etc.
+3. Temporary build artifacts removed (`bin/`, `obj/`, `.vs/`)
+4. No local-only configuration files committed
+5. `.gitignore` is properly configured
+
+## Common Tasks
+
+### Adding a New Azure Service
+1. Create service interface in `Services/` (e.g., `IMyService.cs`)
+2. Implement service in `Services/` (e.g., `MyService.cs`)
+3. Register in `Program.cs` using dependency injection
+4. Use constructor injection in controllers or other services
+
+### Adding Configuration
+1. Add to `AzureSettings` model in `Models/AzureSettings.cs`
+2. Update all `appsettings.*.json` files with new settings
+3. Use `IOptions<AzureSettings>` or `RuntimeConfigService` to access configuration
+
+### Handling Secrets
+1. Store in Azure Key Vault, not in code
+2. Use `IKeyVaultService` to retrieve secrets at runtime
+3. Credentials are managed by `RuntimeConfigService` in memory
+
+## Resources
+- See README.md for project overview
+- See GETTING_STARTED.md for initial setup
+- See LOCAL_SETUP.md for local development setup
+- See DEPLOYMENT.md for deployment procedures
+- See START_HERE.md for getting started guide
+
+## Target Framework
+- .NET 8 (Long-term support)
+- Ensure all code targets .NET 8 and maintains compatibility
