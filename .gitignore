@@ -60,3 +60,5 @@ npm-debug.log
 # Temporary files
 tmpclaude-*
 *.tmp
+azure-resources-config.json
+*.zip
