@@ -54,28 +54,29 @@ public class KeyVaultService : IKeyVaultService
             if (string.IsNullOrWhiteSpace(secretName))
                 return Fail("Secret name cannot be empty.", requestInput);
 
-            // ── Validate UAMI if expected value is configured ─────────────
+            // ── Validate UAMI if in managed identity mode with a configured expected UAMI ─────
+            // On a shared IIS VM only the authorised UAMI may be used; reject any other identity.
             var expectedUami = _runtimeConfig.ExpectedUamiClientId;
-            // Removed strict validation to allow easy testing with multiple UAMI IDs
-            /* if (!string.IsNullOrWhiteSpace(expectedUami) && !string.IsNullOrWhiteSpace(managedIdentityId))
-            {
-                if (!string.Equals(managedIdentityId.Trim(), expectedUami.Trim(),
+            if (_runtimeConfig.UseManagedIdentity
+                && !string.IsNullOrWhiteSpace(expectedUami)
+                && !string.IsNullOrWhiteSpace(managedIdentityId)
+                && !string.Equals(managedIdentityId.Trim(), expectedUami.Trim(),
                                    StringComparison.OrdinalIgnoreCase))
+            {
+                var msg = $"UAMI Client ID '{managedIdentityId}' does not match the identity " +
+                          "configured for this application. Only the authorised UAMI may access this Key Vault.";
+                _logger.LogWarning(msg);
+                return new SecretResponse
                 {
-                    var msg = $"UAMI Client ID '{managedIdentityId}' does not match the identity " +
-                              "configured for this application. Only the authorised UAMI may access this Key Vault.";
-                    _logger.LogWarning(msg);
-                    return new SecretResponse
-                    {
-                        Success         = false,
-                        ErrorMessage    = msg,
-                        CredentialMethod = CredentialLabel,
-                        IdentityUsed    = managedIdentityId,
-                        CodeSnippet     = BuildSnippet(resolvedKvUrl, managedIdentityId, secretName),
-                        RequestInput    = requestInput
-                    };
-                }
-            } */
+                    Success         = false,
+                    ErrorMessage    = msg,
+                    CredentialMethod = CredentialLabel,
+                    IdentityUsed    = managedIdentityId,
+                    CodeSnippet     = BuildSnippet(resolvedKvUrl, managedIdentityId, secretName),
+                    RequestInput    = requestInput
+                };
+            }
+
             var client = CreateSecretClient(managedIdentityId, resolvedKvUrl);
             var secret = await client.GetSecretAsync(secretName);
 
@@ -171,16 +172,29 @@ public class KeyVaultService : IKeyVaultService
             // For UAMI testing, set UseManagedIdentity to true in configuration.
             credential = new DefaultAzureCredential(options);
         }
-        else if (!string.IsNullOrWhiteSpace(managedIdentityId))
-        {
-            _logger.LogInformation("Using User-Assigned ManagedIdentityCredential: {Id}", managedIdentityId);
-            var managedIdentityIdObj = ManagedIdentityId.FromUserAssignedClientId(managedIdentityId);
-            credential = new ManagedIdentityCredential(managedIdentityIdObj);
-        }
         else
         {
-            _logger.LogInformation("Using System-Assigned ManagedIdentityCredential");
-            credential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
+            // Production: prefer explicit UAMI ID, then the app-configured ExpectedUamiClientId.
+            // Only fall back to system-assigned when neither is available.
+            var effectiveId = !string.IsNullOrWhiteSpace(managedIdentityId)
+                ? managedIdentityId
+                : _runtimeConfig.ExpectedUamiClientId;
+
+            if (!string.IsNullOrWhiteSpace(effectiveId))
+            {
+                if (string.IsNullOrWhiteSpace(managedIdentityId))
+                    _logger.LogInformation(
+                        "No UAMI supplied in request; falling back to configured ExpectedUamiClientId: {Id}", effectiveId);
+                else
+                    _logger.LogInformation("Using User-Assigned ManagedIdentityCredential: {Id}", effectiveId);
+
+                credential = new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(effectiveId));
+            }
+            else
+            {
+                _logger.LogInformation("Using System-Assigned ManagedIdentityCredential");
+                credential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
+            }
         }
 
         return new SecretClient(new Uri(keyVaultUrl), credential);
